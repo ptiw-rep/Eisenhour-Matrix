@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Focus Matrix — Productivity OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-deep: #0a0b0f;
+      --bg-surface: rgba(18, 20, 28, 0.72);
+      --glass: rgba(255, 255, 255, 0.04);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --text: #f0f2f8;
+      --text-muted: #8b92a8;
+      --accent: #7c6cf6;
+      --glow: rgba(124, 108, 246, 0.35);
+      --radius: 16px;
+      --radius-sm: 10px;
+      --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      --transition: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      --q1: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 50%, #c0392b 100%);
+      --q2: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 50%, #74b9ff 100%);
+      --q3: linear-gradient(135deg, #fdcb6e 0%, #f39c12 50%, #e17055 100%);
+      --q4: linear-gradient(135deg, #636e72 0%, #2d3436 50%, #1e272e 100%);
+      --success: #00d68f;
+      --danger: #ff4757;
+      --warning: #ffa502;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-deep);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .loader {
+      position: fixed; inset: 0; z-index: 9999;
+      background: var(--bg-deep);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
+      transition: opacity 0.6s ease, visibility 0.6s ease;
+    }
+    .loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .loader-ring {
+      width: 56px; height: 56px;
+      border: 3px solid var(--glass-border); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.9s linear infinite;
+    }
+    .loader-text { font-size: 0.85rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-muted); animation: pulse 1.5s ease infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+    
+    .bg-blobs { position: fixed; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
+
+    .blob { 
+      position: absolute; border-radius: 50%; 
+      opacity: 0.35; animation: float 18s ease-in-out infinite; 
+      will-change: transform;
+    }
+    .blob-1 { width: 400px; height: 400px; background: radial-gradient(circle, #6c5ce7 0%, transparent 70%); top: -10%; left: -5%; animation-delay: 0s; }
+    .blob-2 { width: 350px; height: 350px; background: radial-gradient(circle, #ff6b6b 0%, transparent 70%); bottom: 10%; right: -8%; animation-delay: -6s; }
+    .blob-3 { width: 300px; height: 300px; background: radial-gradient(circle, #00d68f 0%, transparent 70%); top: 40%; left: 50%; animation-delay: -12s; }
+    
+    /* OPTIMIZED: Using translate3d for hardware acceleration */
+    @keyframes float {
+      0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+      33% { transform: translate3d(30px, -40px, 0) scale(1.05); }
+      66% { transform: translate3d(-20px, 20px, 0) scale(0.95); }
+    }
+    
+    .particles { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+    .particle {
+      position: absolute; width: 3px; height: 3px;
+      background: rgba(255, 255, 255, 0.15); border-radius: 50%;
+      animation: drift linear infinite;
+      will-change: transform;
+    }
+    @keyframes drift {
+      0% { transform: translate3d(0, 100vh, 0) rotate(0deg); opacity: 0; }
+      10% { opacity: 0.6; } 90% { opacity: 0.6; }
+      100% { transform: translate3d(0, -20vh, 0) rotate(360deg); opacity: 0; }
+    }
+    .app { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 24px 20px 48px; }
+    .header {
+      display: flex; flex-wrap: wrap; align-items: flex-start;
+      justify-content: space-between; gap: 20px; margin-bottom: 28px;
+    }
+    .brand h1 {
+      font-size: clamp(1.5rem, 4vw, 2rem); font-weight: 700;
+      background: linear-gradient(90deg, #fff 0%, #a29bfe 40%, #74b9ff 70%, #fff 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      /* OPTIMIZED: Removed continuous shimmer animation to prevent constant repaints */
+    }
+    .brand p { color: var(--text-muted); font-size: 0.9rem; margin-top: 4px; }
+    .clock-widget {
+      text-align: right; padding: 14px 20px;
+      background: var(--glass); backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border); border-radius: var(--radius);
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    .clock-time { font-family: 'JetBrains Mono', monospace; font-size: 1.75rem; font-weight: 500; letter-spacing: 0.05em; }
+    .clock-date { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .stat-card {
+      background: var(--glass); backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border); border-radius: var(--radius);
+      padding: 16px 18px; box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.05);
+      transition: transform var(--transition), box-shadow var(--transition);
+      position: relative; overflow: hidden;
+    }
+    .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: 0.6;
+    }
+    .stat-card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.45), 0 0 24px var(--glow); }
+    .stat-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); }
+    .stat-value { font-size: 1.6rem; font-weight: 700; margin-top: 4px; }
+    .stat-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+    .focus-progress-wrap { margin-top: 10px; }
+    .focus-progress { height: 6px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; }
+    .focus-progress-fill {
+      height: 100%; background: linear-gradient(90deg, var(--accent), var(--success));
+      border-radius: 99px; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 12px rgba(0, 214, 143, 0.4);
+    }
+    .score-ring {
+      width: 48px; height: 48px; border-radius: 50%;
+      border: 3px solid rgba(124, 108, 246, 0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.9rem;
+      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+      background: rgba(124, 108, 246, 0.15);
+    }
+
+    /* ===== WEEK NAVIGATOR ===== */
+    .week-nav {
+      background: var(--glass); backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border); border-radius: var(--radius);
+      padding: 18px 20px; margin-bottom: 16px;
+      box-shadow: var(--shadow);
+    }
+    .week-nav-top {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .week-nav-btn {
+      background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm); color: var(--text);
+      padding: 8px 16px; cursor: pointer; font-size: 0.85rem;
+      transition: var(--transition); display: flex; align-items: center; gap: 6px;
+      flex-shrink: 0;
+    }
+    .week-nav-btn:hover { background: rgba(124, 108, 246, 0.25); border-color: var(--accent); }
+    .week-nav-btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+    .week-nav-center { text-align: center; flex: 1; }
+    .week-nav-label { font-weight: 700; font-size: 1.05rem; }
+    .week-nav-range { font-size: 0.75rem; color: var(--text-muted); margin-top: 3px; }
+
+    .week-selectors {
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; margin-top: 10px; flex-wrap: wrap;
+    }
+    .week-sel-label { font-size: 0.72rem; color: var(--text-muted); }
+    .week-sel-select {
+      background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm); color: var(--text);
+      padding: 5px 10px; font-size: 0.82rem; cursor: pointer;
+      transition: var(--transition); outline: none;
+    }
+    .week-sel-select:hover, .week-sel-select:focus { border-color: var(--accent); }
+    .week-nav-go-btn {
+      background: linear-gradient(135deg, var(--accent), #5b4cdb);
+      border: none; border-radius: var(--radius-sm); color: #fff;
+      padding: 5px 14px; font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; transition: var(--transition);
+    }
+    .week-nav-go-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px var(--glow); }
+    .week-nav-today-btn {
+      background: rgba(124, 108, 246, 0.2); border: 1px solid var(--accent);
+      border-radius: 99px; color: var(--accent);
+      padding: 5px 14px; cursor: pointer; font-size: 0.75rem;
+      font-weight: 600; transition: var(--transition);
+    }
+    .week-nav-today-btn:hover { background: rgba(124, 108, 246, 0.35); }
+    .week-nav-today-btn.hidden { display: none; }
+    .week-pin-btn {
+      background: none; border: 1px solid var(--glass-border);
+      border-radius: 99px; color: var(--text-muted);
+      padding: 5px 12px; cursor: pointer; font-size: 0.75rem;
+      transition: var(--transition);
+    }
+    .week-pin-btn:hover { border-color: var(--warning); color: var(--warning); }
+    .week-pin-btn.pinned { border-color: var(--warning); color: var(--warning); background: rgba(255,165,2,0.12); }
+    .pinned-badge { display: none; font-size: 0.65rem; padding: 2px 8px;
+      background: rgba(255,165,2,0.2); border: 1px solid rgba(255,165,2,0.4);
+      border-radius: 99px; color: var(--warning); }
+    .pinned-badge.show { display: inline-block; }
+
+    .week-stats-row {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 10px; margin-top: 14px;
+      padding-top: 14px; border-top: 1px solid var(--glass-border);
+    }
+    .week-stat {
+      text-align: center; padding: 10px 8px;
+      background: rgba(255,255,255,0.04); border-radius: var(--radius-sm);
+      border: 1px solid var(--glass-border);
+    }
+    .week-stat-val { font-size: 1.3rem; font-weight: 700; }
+    .week-stat-lbl { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 3px; }
+    .week-stat-bar { height: 3px; border-radius: 99px; background: rgba(255,255,255,0.08); margin-top: 6px; overflow: hidden; }
+    .week-stat-bar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--success)); transition: width 0.6s ease; }
+
+    .weekly-cards { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+    .week-day {
+      flex: 1; min-width: 52px; text-align: center; padding: 10px 6px;
+      background: var(--glass); border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm); font-size: 0.7rem; transition: var(--transition);
+    }
+    .week-day.active { border-color: var(--accent); background: rgba(124, 108, 246, 0.15); }
+    .week-day .day-label { color: var(--text-muted); }
+    .week-day .day-count { font-weight: 700; font-size: 1rem; margin-top: 4px; }
+
+    .insights-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+    @media (max-width: 768px) { .insights-row { grid-template-columns: 1fr; } }
+    .quote-card, .insights-card {
+      background: var(--glass); backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border); border-radius: var(--radius);
+      padding: 18px 20px; box-shadow: var(--shadow);
+    }
+    .quote-card blockquote { font-size: 0.95rem; font-style: italic; line-height: 1.5; color: rgba(255,255,255,0.9); }
+    .quote-author { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; }
+    .insights-card h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 10px; }
+    .insight-item {
+      font-size: 0.85rem; padding: 8px 0;
+      border-bottom: 1px solid var(--glass-border);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .insight-item:last-child { border-bottom: none; }
+    .insight-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+
+    .matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 900px) { .matrix { grid-template-columns: 1fr; } }
+    .quadrant {
+      background: var(--bg-surface); backdrop-filter: blur(24px);
+      border: 1px solid var(--glass-border); border-radius: var(--radius);
+      min-height: 320px; display: flex; flex-direction: column;
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.04);
+      transition: transform var(--transition), box-shadow var(--transition);
+      position: relative; overflow: hidden;
+    }
+    .quadrant::before { content: ''; position: absolute; inset: 0; opacity: 0.12; pointer-events: none; border-radius: inherit; }
+    .quadrant[data-q="do"]::before { background: var(--q1); }
+    .quadrant[data-q="schedule"]::before { background: var(--q2); }
+    .quadrant[data-q="delegate"]::before { background: var(--q3); }
+    .quadrant[data-q="eliminate"]::before { background: var(--q4); }
+    .quadrant:hover { transform: perspective(800px) rotateX(1deg) rotateY(-1deg); box-shadow: 0 16px 48px rgba(0,0,0,0.5), 0 0 40px var(--glow); }
+    .quadrant.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 0 32px var(--glow); }
+    .quad-header { padding: 18px 18px 12px; display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
+    .quad-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      /* OPTIMIZED: Removed continuous filter:brightness animation */
+    }
+    .quadrant[data-q="do"] .quad-icon { background: var(--q1); }
+    .quadrant[data-q="schedule"] .quad-icon { background: var(--q2); }
+    .quadrant[data-q="delegate"] .quad-icon { background: var(--q3); }
+    .quadrant[data-q="eliminate"] .quad-icon { background: var(--q4); }
+    
+    .quad-title h2 { font-size: 1rem; font-weight: 700; letter-spacing: 0.02em; }
+    .quad-title span { font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 2px; }
+    .quad-count { margin-left: auto; font-size: 0.75rem; padding: 4px 10px; background: rgba(255,255,255,0.08); border-radius: 99px; color: var(--text-muted); }
+    .task-list { flex: 1; padding: 0 12px 12px; overflow-y: auto; max-height: 400px; position: relative; z-index: 1; }
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 0.85rem; }
+    .empty-state .empty-icon { font-size: 2rem; opacity: 0.4; margin-bottom: 8px; }
+    .task {
+      background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 10px;
+      cursor: grab; transition: var(--transition); position: relative;
+    }
+    .task:active { cursor: grabbing; }
+    .task.dragging { opacity: 0.5; transform: scale(0.98); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+    .task:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255,255,255,0.12); }
+    .task.completed { border-color: rgba(0, 214, 143, 0.35); box-shadow: 0 0 20px rgba(0, 214, 143, 0.15); }
+    .task.completed .task-title { text-decoration: line-through; opacity: 0.6; }
+    .task.missed { border-color: rgba(255, 71, 87, 0.5); box-shadow: 0 0 24px rgba(255, 71, 87, 0.25); animation: shake 0.5s ease; }
+    .task.overdue:not(.completed) { animation: subtleShake 2s ease-in-out infinite; }
+    @keyframes shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
+    @keyframes subtleShake { 0%, 90%, 100% { transform: translateX(0); } 92% { transform: translateX(-2px); } 96% { transform: translateX(2px); } }
+    .task-header { display: flex; align-items: flex-start; gap: 10px; }
+    .task-check {
+      width: 22px; height: 22px; flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.25); border-radius: 6px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: var(--transition); margin-top: 1px;
+    }
+    .task-check:hover { border-color: var(--accent); }
+    .task-check.checked { background: var(--success); border-color: var(--success); animation: checkPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .task-check.checked::after { content: '✓'; color: #0a0b0f; font-size: 0.75rem; font-weight: 700; }
+    @keyframes checkPop { 0% { transform: scale(0.6); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
+    .task-body { flex: 1; min-width: 0; }
+    .task-title {
+      font-size: 0.9rem; font-weight: 500; word-break: break-word;
+      border: none; background: transparent; color: inherit; width: 100%; outline: none; padding: 0;
+    }
+    .task-title:focus { background: rgba(255,255,255,0.05); border-radius: 4px; padding: 2px 4px; }
+    .task-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+    .badge { font-size: 0.65rem; padding: 3px 8px; border-radius: 99px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .badge-status { background: rgba(255,255,255,0.1); color: var(--text-muted); }
+    .badge-status.in-progress { background: rgba(116, 185, 255, 0.25); color: #74b9ff; }
+    .badge-status.completed { background: rgba(0, 214, 143, 0.2); color: var(--success); }
+    .badge-status.missed { background: rgba(255, 71, 87, 0.25); color: var(--danger); }
+    .badge-warning { background: rgba(255, 165, 2, 0.25); color: var(--warning); }
+    .badge-overdue { background: rgba(255, 71, 87, 0.3); color: #fff; animation: pulseBadge 1.5s ease infinite; }
+    @keyframes pulseBadge { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    .task-deadline { font-size: 0.7rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+    .task-deadline input {
+      background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border);
+      border-radius: 6px; color: var(--text); font-size: 0.7rem; padding: 4px 8px; font-family: inherit;
+    }
+    .status-select {
+      font-size: 0.65rem; padding: 4px 8px; border-radius: 6px;
+      background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border);
+      color: var(--text); cursor: pointer;
+    }
+    .task-actions { display: flex; gap: 4px; margin-top: 8px; }
+    .btn-icon {
+      width: 28px; height: 28px; border: none; background: rgba(255,255,255,0.06);
+      border-radius: 8px; color: var(--text-muted); cursor: pointer;
+      font-size: 0.85rem; transition: var(--transition);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .btn-icon:hover { background: rgba(255,71,87,0.2); color: var(--danger); }
+    .reflection-box {
+      margin-top: 10px; padding: 10px;
+      background: rgba(255, 71, 87, 0.08); border: 1px solid rgba(255, 71, 87, 0.2);
+      border-radius: 8px; display: none;
+    }
+    .task.missed .reflection-box { display: block; }
+    .reflection-box label { font-size: 0.72rem; color: var(--danger); display: block; margin-bottom: 6px; }
+    .reflection-box textarea {
+      width: 100%; min-height: 48px; background: rgba(0,0,0,0.2);
+      border: 1px solid var(--glass-border); border-radius: 6px; color: var(--text);
+      font-size: 0.75rem; padding: 8px; resize: vertical; font-family: inherit;
+    }
+    .add-task-row { padding: 0 12px 14px; position: relative; z-index: 1; }
+    .add-task-form { display: flex; gap: 8px; }
+    .add-task-form input {
+      flex: 1; background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm); padding: 10px 14px; color: var(--text);
+      font-size: 0.85rem; outline: none; transition: var(--transition);
+    }
+    .add-task-form input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124, 108, 246, 0.2); }
+    .btn-add {
+      padding: 10px 16px; border: none; border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--accent), #5b4cdb); color: #fff;
+      font-weight: 600; font-size: 0.8rem; cursor: pointer;
+      transition: var(--transition); position: relative; overflow: hidden;
+    }
+    .btn-add::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transform: translateX(-100%); transition: transform 0.5s;
+    }
+    .btn-add:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--glow); }
+    .btn-add:hover::after { transform: translateX(100%); }
+    .accountability-fields { display: none; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .quadrant[data-accountability="true"] .accountability-fields { display: flex; }
+    .accountability-fields label { font-size: 0.7rem; color: var(--text-muted); }
+    .accountability-fields input[type="datetime-local"] {
+      background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border);
+      border-radius: 6px; padding: 8px; color: var(--text); font-size: 0.8rem;
+    }
+    .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
+    .toast {
+      padding: 14px 20px; background: var(--bg-surface); backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border); border-radius: var(--radius-sm);
+      font-size: 0.85rem; box-shadow: var(--shadow);
+      animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); max-width: 280px;
+    }
+    .toast.success { border-color: rgba(0, 214, 143, 0.4); }
+    @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .celebration { position: fixed; pointer-events: none; z-index: 1001; font-size: 1.5rem; animation: celebrate 1s ease forwards; }
+    @keyframes celebrate { 0% { transform: translateY(0) scale(0); opacity: 1; } 100% { transform: translateY(-80px) scale(1.2); opacity: 0; } }
+    .footer { text-align: center; margin-top: 36px; padding-top: 20px; border-top: 1px solid var(--glass-border); font-size: 0.8rem; color: var(--text-muted); letter-spacing: 0.08em; }
+  </style>
+</head>
+<body>
+  <div class="loader" id="loader">
+    <div class="loader-ring"></div>
+    <span class="loader-text">Initializing</span>
+  </div>
+  <div class="bg-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+  <div class="particles" id="particles"></div>
+
+  <div class="app">
+    <header class="header">
+      <div class="brand">
+        <h1>Focus Matrix</h1>
+        <p>Your personal task tracking system</p>
+      </div>
+      <div class="clock-widget">
+        <div class="clock-time" id="clockTime">--:--</div>
+        <div class="clock-date" id="clockDate">Loading...</div>
+      </div>
+    </header>
+
+    <section class="stats-bar">
+      <div class="stat-card">
+        <div class="stat-label">Daily Focus</div>
+        <div class="stat-value" id="focusPercent">0%</div>
+        <div class="focus-progress-wrap">
+          <div class="focus-progress">
+            <div class="focus-progress-fill" id="focusBar" style="width: 0%"></div>
+          </div>
+        </div>
+        <div class="stat-sub">Important tasks completed today</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Focus Streak</div>
+        <div class="stat-value" id="streakCount">0</div>
+        <div class="stat-sub">days in a row</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Accountability Score</div>
+        <div class="stat-value" id="accountScore">100</div>
+        <div class="score-ring" id="scoreRing">100</div>
+        <div class="stat-sub">On-time completion rate</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Week Completion</div>
+        <div class="stat-value" id="completionRate">0%</div>
+        <div class="stat-sub" id="completionRateSub">This week's tasks</div>
+      </div>
+    </section>
+
+    <!-- WEEK NAVIGATOR -->
+    <div class="week-nav">
+      <div class="week-nav-top">
+        <button class="week-nav-btn" id="prevWeekBtn" onclick="navigateWeek(-1)">&#8592; Prev</button>
+        <div class="week-nav-center">
+          <div class="week-nav-label" id="weekNavLabel">This Week</div>
+          <div class="week-nav-range" id="weekNavRange"></div>
+        </div>
+        <button class="week-nav-btn" id="nextWeekBtn" onclick="navigateWeek(1)">Next &#8594;</button>
+      </div>
+
+      <!-- Week number + year selectors -->
+      <div class="week-selectors">
+        <span class="week-sel-label">Week</span>
+        <select class="week-sel-select" id="weekNumSelect" onchange="syncWeekSelectors()"></select>
+        <span class="week-sel-label">Year</span>
+        <select class="week-sel-select" id="weekYearSelect" onchange="syncWeekSelectors()"></select>
+        <button class="week-nav-go-btn" onclick="jumpToWeekNumber()">Go &#8594;</button>
+        <button class="week-nav-today-btn hidden" id="todayBtn" onclick="goToCurrentWeek()">&#8617; Today</button>
+        <span class="pinned-badge" id="pinnedBadge">&#128205; Pinned</span>
+        <button class="week-pin-btn" id="pinBtn" onclick="togglePin()">&#128205; Pin</button>
+      </div>
+
+      <!-- Week stats -->
+      <div class="week-stats-row" id="weekStatsRow"></div>
+    </div>
+
+    <div class="weekly-cards" id="weeklyCards"></div>
+
+    <div class="insights-row">
+      <div class="quote-card">
+        <blockquote id="quoteText">"The key is not to prioritize what's on your schedule, but to schedule your priorities."</blockquote>
+        <div class="quote-author" id="quoteAuthor">— Stephen Covey</div>
+      </div>
+      <div class="insights-card">
+        <h3>Productivity Insights</h3>
+        <div id="insightsList"></div>
+      </div>
+    </div>
+
+    <main class="matrix" id="matrix"></main>
+    <footer class="footer">Built for focus ⚡</footer>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    const QUADRANTS = [
+      { id: 'do', title: 'DO IT', subtitle: 'Urgent + Important', icon: '🔥', accountability: true },
+      { id: 'schedule', title: 'SCHEDULE IT', subtitle: 'Important · Not Urgent', icon: '📅', accountability: true },
+      { id: 'delegate', title: 'DELEGATE IT', subtitle: 'Urgent · Not Important', icon: '👥', accountability: false },
+      { id: 'eliminate', title: 'ELIMINATE IT', subtitle: 'Not Important · Not Urgent', icon: '🗑️', accountability: false }
+    ];
+
+    const QUOTES = [
+      { text: 'The key is not to prioritize what\'s on your schedule, but to schedule your priorities.', author: 'Stephen Covey' },
+      { text: 'Focus on being productive instead of busy.', author: 'Tim Ferriss' },
+      { text: 'You don\'t have to be extreme, just consistent.', author: 'Unknown' },
+      { text: 'Discipline is choosing between what you want now and what you want most.', author: 'Abraham Lincoln' },
+      { text: 'Small daily improvements are the key to staggering long-term results.', author: 'Unknown' },
+      { text: 'The secret of getting ahead is getting started.', author: 'Mark Twain' },
+      { text: 'Done is better than perfect.', author: 'Sheryl Sandberg' },
+      { text: 'Your future is created by what you do today, not tomorrow.', author: 'Unknown' }
+    ];
+
+    const ENCOURAGEMENTS = [
+      'Crushing it! 🎯', 'Momentum unlocked ⚡', 'One step closer to your goals!',
+      'Discipline wins again 💪', 'Your future self thanks you!', 'Focus streak growing 🔥'
+    ];
+
+    const STORAGE_KEY = 'focusMatrix_v2';
+
+    let weekOffset = 0;
+    let state = loadState();
+
+    function defaultState() {
+      return {
+        tasks: [], accountabilityScore: 100, streak: 0,
+        lastActiveDate: null, completionHistory: {}, reflections: {}
+      };
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return { ...defaultState(), ...JSON.parse(raw) };
+      } catch (e) {}
+      return defaultState();
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function uid() {
+      return 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+    }
+
+    function getMondayOfWeek(offset) {
+      const d = new Date();
+      const day = d.getDay();
+      const diff = (day === 0 ? -6 : 1 - day);
+      d.setDate(d.getDate() + diff + (offset * 7));
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+
+    function getWeekKey(offset) {
+      const monday = getMondayOfWeek(offset);
+      const y = monday.getFullYear();
+      const m = String(monday.getMonth() + 1).padStart(2, '0');
+      const d = String(monday.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function getCurrentWeekKey() { return getWeekKey(0); }
+    function getViewWeekKey() { return getWeekKey(weekOffset); }
+
+    function formatDateRange(offset) {
+      const monday = getMondayOfWeek(offset);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      const opts = { month: 'short', day: 'numeric' };
+      return monday.toLocaleDateString('en-US', opts) + ' – ' + sunday.toLocaleDateString('en-US', { ...opts, year: 'numeric' });
+    }
+
+    let weekPinned = false;
+
+    function getISOWeekNumber(date) {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+      const week1 = new Date(d.getFullYear(), 0, 4);
+      return 1 + Math.round(((d - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+    }
+
+    function getISOWeekYear(date) {
+      const d = new Date(date);
+      d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+      return d.getFullYear();
+    }
+
+    function getMondayOfISOWeek(week, year) {
+      const jan4 = new Date(year, 0, 4);
+      const startOfWeek1 = new Date(jan4);
+      startOfWeek1.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7));
+      const result = new Date(startOfWeek1);
+      result.setDate(startOfWeek1.getDate() + (week - 1) * 7);
+      result.setHours(0, 0, 0, 0);
+      return result;
+    }
+
+    function getWeeksInYear(year) {
+      const dec28 = new Date(year, 11, 28);
+      return getISOWeekNumber(dec28);
+    }
+
+    function populateWeekSelectors() {
+      const numSel = document.getElementById('weekNumSelect');
+      const yearSel = document.getElementById('weekYearSelect');
+      if (!numSel || !yearSel) return;
+
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentWeek = getISOWeekNumber(now);
+      const monday = getMondayOfWeek(weekOffset);
+      const viewedWeek = getISOWeekNumber(monday);
+      const viewedYear = getISOWeekYear(monday);
+
+      yearSel.innerHTML = '';
+      for (let y = currentYear - 3; y <= currentYear + 2; y++) {
+        const opt = document.createElement('option');
+        opt.value = y; opt.textContent = y;
+        if (y === viewedYear) opt.selected = true;
+        yearSel.appendChild(opt);
+      }
+
+      const weeksInYear = getWeeksInYear(viewedYear);
+      numSel.innerHTML = '';
+      for (let w = 1; w <= weeksInYear; w++) {
+        const opt = document.createElement('option');
+        opt.value = w; opt.textContent = `Week ${w}`;
+        if (w === viewedWeek) opt.selected = true;
+        numSel.appendChild(opt);
+      }
+    }
+
+    function syncWeekSelectors() {
+      const yearSel = document.getElementById('weekYearSelect');
+      const numSel = document.getElementById('weekNumSelect');
+      if (!yearSel || !numSel) return;
+      const selectedYear = parseInt(yearSel.value);
+      const currentWeekVal = parseInt(numSel.value);
+      const weeksInYear = getWeeksInYear(selectedYear);
+      const prevSelected = Math.min(currentWeekVal, weeksInYear);
+      numSel.innerHTML = '';
+      for (let w = 1; w <= weeksInYear; w++) {
+        const opt = document.createElement('option');
+        opt.value = w; opt.textContent = `Week ${w}`;
+        if (w === prevSelected) opt.selected = true;
+        numSel.appendChild(opt);
+      }
+    }
+
+    function jumpToWeekNumber() {
+      const numSel = document.getElementById('weekNumSelect');
+      const yearSel = document.getElementById('weekYearSelect');
+      if (!numSel || !yearSel) return;
+      const week = parseInt(numSel.value);
+      const year = parseInt(yearSel.value);
+
+      const targetMonday = getMondayOfISOWeek(week, year);
+      const currentMonday = getMondayOfWeek(0);
+      const diffMs = targetMonday - currentMonday;
+      const diffWeeks = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
+
+      weekPinned = false;
+      weekOffset = diffWeeks;
+      refreshView();
+    }
+
+    function refreshView() {
+      renderMatrix(); renderWeeklyCards(); updateStats(); updateWeekNav();
+    }
+
+    function navigateWeek(dir) {
+      if (weekPinned) { showToast('Unpin the week first 📌', ''); return; }
+      weekOffset += dir;
+      refreshView();
+    }
+
+    function goToCurrentWeek() { weekPinned = false; weekOffset = 0; refreshView(); }
+    function togglePin() {
+      weekPinned = !weekPinned;
+      updateWeekNav();
+      showToast(weekPinned ? 'Week pinned 📌 — navigation locked' : 'Week unpinned', 'success');
+    }
+
+    function renderWeekStats() {
+      const el = document.getElementById('weekStatsRow');
+      if (!el) return;
+      const wk = getViewWeekKey();
+      const weekTasks = state.tasks.filter(t => t.weekKey === wk);
+      const total = weekTasks.length;
+      const done = weekTasks.filter(t => t.status === 'completed').length;
+      const missed = weekTasks.filter(t => t.status === 'missed').length;
+      const inProgress = weekTasks.filter(t => t.status === 'in-progress').length;
+      const pct = total ? Math.round((done / total) * 100) : 0;
+      const importantDone = weekTasks.filter(t => (t.quadrant === 'do' || t.quadrant === 'schedule') && t.status === 'completed').length;
+      const importantTotal = weekTasks.filter(t => t.quadrant === 'do' || t.quadrant === 'schedule').length;
+      const focusPct = importantTotal ? Math.round((importantDone / importantTotal) * 100) : 0;
+
+      el.innerHTML = `
+        <div class="week-stat"><div class="week-stat-val">${total}</div><div class="week-stat-lbl">Total Tasks</div></div>
+        <div class="week-stat"><div class="week-stat-val" style="color:var(--success)">${done}</div><div class="week-stat-lbl">Completed</div><div class="week-stat-bar"><div class="week-stat-bar-fill" style="width:${pct}%"></div></div></div>
+        <div class="week-stat"><div class="week-stat-val" style="color:var(--danger)">${missed}</div><div class="week-stat-lbl">Missed</div></div>
+        <div class="week-stat"><div class="week-stat-val" style="color:#74b9ff">${inProgress}</div><div class="week-stat-lbl">In Progress</div></div>
+        <div class="week-stat"><div class="week-stat-val">${pct}%</div><div class="week-stat-lbl">Done Rate</div><div class="week-stat-bar"><div class="week-stat-bar-fill" style="width:${pct}%; background:linear-gradient(90deg,var(--accent),var(--success))"></div></div></div>
+        <div class="week-stat"><div class="week-stat-val" style="color:var(--accent)">${focusPct}%</div><div class="week-stat-lbl">Focus Rate</div><div class="week-stat-bar"><div class="week-stat-bar-fill" style="width:${focusPct}%; background:linear-gradient(90deg,#6c5ce7,#a29bfe)"></div></div></div>
+      `;
+    }
+
+    function updateWeekNav() {
+      const label = document.getElementById('weekNavLabel');
+      const range = document.getElementById('weekNavRange');
+      const todayBtn = document.getElementById('todayBtn');
+      const prevBtn = document.getElementById('prevWeekBtn');
+      const nextBtn = document.getElementById('nextWeekBtn');
+      const pinBtn = document.getElementById('pinBtn');
+      const pinnedBadge = document.getElementById('pinnedBadge');
+
+      const monday = getMondayOfWeek(weekOffset);
+      const wNum = getISOWeekNumber(monday);
+      const wYear = getISOWeekYear(monday);
+
+      if (weekOffset === 0) label.textContent = weekPinned ? `Week ${wNum} · ${wYear} (Pinned)` : `Week ${wNum} · ${wYear} — This Week`;
+      else if (weekOffset === -1) label.textContent = `Week ${wNum} · ${wYear} — Last Week`;
+      else if (weekOffset === 1) label.textContent = `Week ${wNum} · ${wYear} — Next Week`;
+      else label.textContent = `Week ${wNum} · ${wYear}`;
+
+      range.textContent = formatDateRange(weekOffset);
+      todayBtn.classList.toggle('hidden', weekOffset === 0);
+      prevBtn.disabled = weekPinned; nextBtn.disabled = weekPinned;
+      if (pinBtn) pinBtn.classList.toggle('pinned', weekPinned);
+      if (pinnedBadge) pinnedBadge.classList.toggle('show', weekPinned);
+
+      populateWeekSelectors();
+      renderWeekStats();
+    }
+
+    function localInputToStorage(val) { return val; }
+    function storageToLocalInput(stored) { return stored ? stored.slice(0, 16) : ''; }
+
+    function isOverdue(task) {
+      if (!task.deadline || task.status === 'completed') return false;
+      return new Date(task.deadline) < new Date();
+    }
+
+    function isDueSoon(task) {
+      if (!task.deadline || task.status === 'completed') return false;
+      const diff = new Date(task.deadline) - new Date();
+      return diff > 0 && diff < 24 * 60 * 60 * 1000;
+    }
+
+    function init() {
+      renderMatrix(); initParticles(); initCursorGlow();
+      updateClock(); setInterval(updateClock, 1000);
+      rotateQuote(); setInterval(rotateQuote, 30000);
+      checkDeadlines(); setInterval(checkDeadlines, 60000);
+      updateStats(); renderWeeklyCards(); renderInsights(); updateStreak(); updateWeekNav();
+      setTimeout(() => document.getElementById('loader').classList.add('hidden'), 1200);
+    }
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clockTime').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+      document.getElementById('clockDate').textContent = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    function rotateQuote() {
+      const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+      document.getElementById('quoteText').textContent = `"${q.text}"`;
+      document.getElementById('quoteAuthor').textContent = `— ${q.author}`;
+    }
+
+    function renderMatrix() {
+      const matrix = document.getElementById('matrix');
+      const wk = getViewWeekKey();
+      matrix.innerHTML = QUADRANTS.map(q => `
+        <section class="quadrant" data-q="${q.id}" data-accountability="${q.accountability}"
+          ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '${q.id}')">
+          <div class="quad-header">
+            <div class="quad-icon">${q.icon}</div>
+            <div class="quad-title"><h2>${q.title}</h2><span>${q.subtitle}</span></div>
+            <span class="quad-count" id="count-${q.id}">0</span>
+          </div>
+          <div class="task-list" id="list-${q.id}" data-quadrant="${q.id}"></div>
+          <div class="add-task-row">
+            <div class="add-task-form">
+              <input type="text" placeholder="Add a task..." id="input-${q.id}" autocomplete="off"
+                onmousedown="event.stopPropagation()" onclick="event.stopPropagation()"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();event.stopPropagation();addTask('${q.id}');}" />
+              <button type="button" class="btn-add" onmousedown="event.stopPropagation()" onclick="event.stopPropagation(); addTask('${q.id}')">+</button>
+            </div>
+            <div class="accountability-fields" id="fields-${q.id}">
+              <label>Deadline (accountability)</label>
+              <input type="datetime-local" id="deadline-${q.id}" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()" />
+            </div>
+          </div>
+        </section>
+      `).join('');
+      QUADRANTS.forEach(q => renderTasks(q.id));
+    }
+
+    function getTasksForQuadrant(qId) {
+      const wk = getViewWeekKey();
+      return state.tasks.filter(t => t.quadrant === qId && t.weekKey === wk);
+    }
+
+    function renderTasks(qId) {
+      const list = document.getElementById(`list-${qId}`);
+      const tasks = getTasksForQuadrant(qId);
+      const q = QUADRANTS.find(x => x.id === qId);
+      document.getElementById(`count-${qId}`).textContent = tasks.length;
+      if (tasks.length === 0) {
+        list.innerHTML = `<div class="empty-state"><div class="empty-icon">${q.icon}</div><p>No tasks this week.<br/>Add one to get started.</p></div>`;
+        return;
+      }
+      list.innerHTML = tasks.map(t => renderTaskCard(t, q)).join('');
+    }
+
+    function renderTaskCard(task, quadrant) {
+      const acc = quadrant.accountability;
+      const overdue = acc && isOverdue(task);
+      const dueSoon = acc && isDueSoon(task);
+      const status = task.status || 'not-started';
+      const classes = ['task'];
+      if (status === 'completed') classes.push('completed');
+      if (status === 'missed') classes.push('missed');
+      if (overdue && status !== 'completed') classes.push('overdue');
+
+      let badges = `<span class="badge badge-status ${status.replace(' ', '-')}">${formatStatus(status)}</span>`;
+      if (overdue && status !== 'completed') badges += `<span class="badge badge-overdue">Overdue</span>`;
+      else if (dueSoon && status !== 'completed') badges += `<span class="badge badge-warning">Due Soon</span>`;
+
+      const deadlineHtml = acc && task.deadline
+        ? `<span class="task-deadline"><input type="datetime-local" value="${storageToLocalInput(task.deadline)}" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()" onchange="updateDeadline('${task.id}', this.value)" /></span>` : '';
+
+      const statusSelect = acc ? `
+        <select class="status-select" onmousedown="event.stopPropagation()" onchange="updateStatus('${task.id}', this.value)">
+          <option value="not-started" ${status === 'not-started' ? 'selected' : ''}>Not Started</option>
+          <option value="in-progress" ${status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+          <option value="completed" ${status === 'completed' ? 'selected' : ''}>Completed</option>
+          <option value="missed" ${status === 'missed' ? 'selected' : ''}>Missed</option>
+        </select>` : '';
+
+      const reflection = acc ? `
+        <div class="reflection-box">
+          <label>What stopped you from completing this?</label>
+          <textarea placeholder="Reflect honestly..." oninput="saveReflection('${task.id}', this.value)">${state.reflections[task.id] || ''}</textarea>
+        </div>` : '';
+
+      return `
+        <div class="${classes.join(' ')}" draggable="true" data-id="${task.id}"
+          ondragstart="onDragStart(event)" ondragend="onDragEnd(event)">
+          <div class="task-header">
+            <div class="task-check ${status === 'completed' ? 'checked' : ''}" onclick="event.stopPropagation(); toggleComplete('${task.id}')"></div>
+            <div class="task-body">
+              <input class="task-title" value="${escapeHtml(task.title)}"
+                onclick="event.stopPropagation()" onmousedown="event.stopPropagation()"
+                onchange="updateTitle('${task.id}', this.value)" />
+              <div class="task-meta">${badges}${deadlineHtml}${statusSelect}</div>
+              <div class="task-actions"><button class="btn-icon" onclick="event.stopPropagation(); deleteTask('${task.id}')" onmousedown="event.stopPropagation()" title="Delete">✕</button></div>
+              ${reflection}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function formatStatus(s) { return s.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' '); }
+
+    function addTask(qId) {
+      const input = document.getElementById(`input-${qId}`);
+      const title = input.value.trim();
+      if (!title) return;
+      const q = QUADRANTS.find(x => x.id === qId);
+      const deadlineEl = document.getElementById(`deadline-${qId}`);
+      let deadline = null;
+
+      if (q.accountability && deadlineEl && deadlineEl.value) {
+        deadline = localInputToStorage(deadlineEl.value);
+      } else if (q.accountability) {
+        const d = new Date();
+        d.setDate(d.getDate() + 1); d.setHours(23, 59, 0, 0);
+        deadline = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + 'T' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+      }
+
+      const wk = getViewWeekKey();
+      state.tasks.push({
+        id: uid(), title, quadrant: qId, status: 'not-started',
+        deadline, weekKey: wk, createdAt: new Date().toISOString(), completedAt: null
+      });
+
+      input.value = '';
+      if (deadlineEl) deadlineEl.value = '';
+      saveState(); renderTasks(qId); updateStats(); renderInsights();
+      showToast('Task added — make it count!', 'success');
+    }
+
+    function updateTitle(id, title) { const t = state.tasks.find(x => x.id === id); if (t) { t.title = title.trim() || t.title; saveState(); } }
+    function updateDeadline(id, value) {
+      const t = state.tasks.find(x => x.id === id);
+      if (t) {
+        t.deadline = value ? localInputToStorage(value) : null;
+        if (t.status === 'missed' && !isOverdue(t)) t.status = 'not-started';
+        saveState(); renderTasks(t.quadrant); updateStats();
+      }
+    }
+
+    function updateStatus(id, status) {
+      const t = state.tasks.find(x => x.id === id);
+      if (!t) return;
+      const prev = t.status;
+      t.status = status;
+      if (status === 'completed') { t.completedAt = new Date().toISOString(); handleCompletion(t, prev); }
+      else if (status === 'missed') { handleMissed(t); }
+      else { t.completedAt = null; }
+      saveState(); renderTasks(t.quadrant); updateStats(); renderInsights(); renderWeeklyCards();
+    }
+
+    function toggleComplete(id) {
+      const t = state.tasks.find(x => x.id === id);
+      if (!t) return;
+      const q = QUADRANTS.find(x => x.id === t.quadrant);
+      if (q.accountability) { updateStatus(id, t.status === 'completed' ? 'not-started' : 'completed'); }
+      else {
+        t.status = t.status === 'completed' ? 'not-started' : 'completed';
+        if (t.status === 'completed') { t.completedAt = new Date().toISOString(); celebrate(); showToast(ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)], 'success'); }
+        else t.completedAt = null;
+        saveState(); renderTasks(t.quadrant); updateStats();
+      }
+    }
+
+    function deleteTask(id) {
+      const t = state.tasks.find(x => x.id === id);
+      state.tasks = state.tasks.filter(x => x.id !== id);
+      delete state.reflections[id];
+      saveState();
+      if (t) renderTasks(t.quadrant);
+      updateStats(); renderInsights();
+    }
+
+    function saveReflection(id, text) { state.reflections[id] = text; saveState(); }
+
+    function handleCompletion(task, prevStatus) {
+      const onTime = task.deadline ? new Date(task.completedAt) <= new Date(task.deadline) : true;
+      if (onTime) state.accountabilityScore = Math.min(100, state.accountabilityScore + 3);
+      else state.accountabilityScore = Math.max(0, state.accountabilityScore - 2);
+      recordCompletion(); celebrate();
+      showToast(ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)], 'success');
+      updateStreak();
+    }
+
+    function handleMissed(task) { state.accountabilityScore = Math.max(0, state.accountabilityScore - 8); saveState(); }
+
+    function checkDeadlines() {
+      let changed = false;
+      state.tasks.forEach(t => {
+        const q = QUADRANTS.find(x => x.id === t.quadrant);
+        if (!q.accountability) return;
+        if (isOverdue(t) && t.status !== 'completed' && t.status !== 'missed') { t.status = 'missed'; handleMissed(t); changed = true; }
+      });
+      if (changed) { saveState(); QUADRANTS.forEach(q => renderTasks(q.id)); updateStats(); renderInsights(); }
+    }
+
+    function recordCompletion() { state.completionHistory[todayKey()] = (state.completionHistory[todayKey()] || 0) + 1; }
+    function todayKey() { return new Date().toISOString().slice(0, 10); }
+
+    function updateStreak() {
+      const today = todayKey();
+      const important = state.tasks.filter(t => (t.quadrant === 'do' || t.quadrant === 'schedule') && t.status === 'completed');
+      const completedToday = important.some(t => t.completedAt && t.completedAt.slice(0, 10) === today);
+      if (completedToday) {
+        if (state.lastActiveDate !== today) {
+          const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+          const yKey = yesterday.toISOString().slice(0, 10);
+          if (state.lastActiveDate === yKey) state.streak++;
+          else if (state.lastActiveDate !== today) state.streak = 1;
+          state.lastActiveDate = today; saveState();
+        }
+      }
+      document.getElementById('streakCount').textContent = state.streak;
+    }
+
+    function updateStats() {
+      const today = todayKey();
+      const important = state.tasks.filter(t => (t.quadrant === 'do' || t.quadrant === 'schedule') && t.weekKey === getCurrentWeekKey());
+      const importantToday = important.filter(t => t.createdAt && t.createdAt.slice(0, 10) <= today);
+      const doneToday = important.filter(t => t.status === 'completed' && t.completedAt && t.completedAt.slice(0, 10) === today);
+      const pct = importantToday.length ? Math.round((doneToday.length / Math.max(importantToday.length, doneToday.length)) * 100) : (doneToday.length ? 100 : 0);
+      document.getElementById('focusPercent').textContent = pct + '%';
+      document.getElementById('focusBar').style.width = pct + '%';
+
+      const wk = getViewWeekKey();
+      const weekTasks = state.tasks.filter(t => t.weekKey === wk);
+      const weekDone = weekTasks.filter(t => t.status === 'completed').length;
+      const weekPct = weekTasks.length ? Math.round((weekDone / weekTasks.length) * 100) : 0;
+      document.getElementById('completionRate').textContent = weekPct + '%';
+      document.getElementById('completionRateSub').textContent = weekDone + '/' + weekTasks.length + ' tasks this week';
+
+      const score = Math.round(state.accountabilityScore);
+      document.getElementById('accountScore').textContent = score;
+      document.getElementById('scoreRing').textContent = score;
+    }
+
+    function renderWeeklyCards() {
+      const el = document.getElementById('weeklyCards');
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const monday = getMondayOfWeek(weekOffset);
+      const todayStr = todayKey();
+      let html = '';
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday); d.setDate(monday.getDate() + i);
+        const key = d.toISOString().slice(0, 10);
+        const count = state.completionHistory[key] || 0;
+        const dayIdx = d.getDay();
+        const isToday = key === todayStr;
+        html += `<div class="week-day ${isToday ? 'active' : ''}"><div class="day-label">${days[dayIdx]}</div><div class="day-count">${count}</div></div>`;
+      }
+      el.innerHTML = html;
+    }
+
+    function renderInsights() {
+      const list = document.getElementById('insightsList');
+      const insights = [];
+      const missed = state.tasks.filter(t => (t.quadrant === 'do' || t.quadrant === 'schedule') && t.status === 'missed').length;
+      if (missed > 0) insights.push(`You missed ${missed} important deadline${missed > 1 ? 's' : ''} recently.`);
+      if (state.streak > 0) insights.push(`Your focus streak is ${state.streak} day${state.streak > 1 ? 's' : ''}.`);
+      const completions = state.tasks.filter(t => t.completedAt);
+      const hours = {};
+      completions.forEach(t => {
+        const h = new Date(t.completedAt).getHours();
+        const slot = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+        hours[slot] = (hours[slot] || 0) + 1;
+      });
+      const top = Object.entries(hours).sort((a, b) => b[1] - a[1])[0];
+      if (top && top[1] >= 2) insights.push(`You complete more tasks in the ${top[0]}.`);
+      const score = state.accountabilityScore;
+      if (score >= 90) insights.push('Excellent accountability — keep this momentum.');
+      else if (score < 60) insights.push('Consider fewer tasks with clearer deadlines.');
+      if (insights.length === 0) insights.push('Add important tasks to unlock personalized insights.');
+      list.innerHTML = insights.slice(0, 4).map(i => `<div class="insight-item"><span class="insight-dot"></span>${i}</div>`).join('');
+    }
+
+    let draggedId = null;
+    function onDragStart(e) {
+      draggedId = e.currentTarget.dataset.id;
+      e.currentTarget.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', draggedId);
+    }
+    function onDragEnd(e) {
+      e.currentTarget.classList.remove('dragging');
+      document.querySelectorAll('.quadrant').forEach(q => q.classList.remove('drag-over'));
+      draggedId = null;
+    }
+    function onDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+    function onDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+    function onDrop(e, qId) {
+      e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+      const id = e.dataTransfer.getData('text/plain') || draggedId;
+      const t = state.tasks.find(x => x.id === id);
+      if (t && t.quadrant !== qId) {
+        const oldQ = t.quadrant;
+        t.quadrant = qId;
+        const newQ = QUADRANTS.find(x => x.id === qId);
+        if (!newQ.accountability) { t.deadline = null; if (t.status === 'missed') t.status = 'not-started'; }
+        saveState(); renderTasks(oldQ); renderTasks(qId); updateStats();
+        showToast('Task moved', 'success');
+      }
+    }
+
+    /* OPTIMIZED: Reduced particle count from 24 to 12 */
+    function initParticles() {
+      const container = document.getElementById('particles');
+      for (let i = 0; i < 12; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.animationDuration = 12 + Math.random() * 20 + 's';
+        p.style.animationDelay = Math.random() * 10 + 's';
+        container.appendChild(p);
+      }
+    }
+
+    function initCursorGlow() {
+      const glow = document.getElementById('cursorGlow');
+      
+      // Disable entirely on touch devices to save battery/performance
+      if ('ontouchstart' in window) {
+        glow.style.display = 'none';
+        return;
+      }
+    }
+
+    function showToast(msg, type = '') {
+      const c = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = 'toast ' + type; t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 3500);
+    }
+
+    function celebrate() {
+      const emojis = ['✨', '🎉', '⚡', '🌟', '💫'];
+      const el = document.createElement('div');
+      el.className = 'celebration';
+      el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      el.style.left = 40 + Math.random() * 20 + '%';
+      el.style.top = '50%';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1000);
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
